@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Night Library">
+<title>Night Library</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #000; color: #f4f1e8; font: 1.25rem/1.5 -apple-system, system-ui, sans-serif; }
+header, main, nav { max-width: 46rem; margin: 0 auto; padding: 0 1rem; }
+h1 { font-size: 1.8rem; margin: .8rem 0 .2rem; }
+h2 { font-size: 1.5rem; margin: 1rem 0 .5rem; }
+h3 { font-size: 1.25rem; margin: 1.2rem 0 .4rem; color: #ffd98a; }
+button, select { font: inherit; color: #000; background: #ffd98a; border: 3px solid #ffd98a; border-radius: .8rem; min-height: 3.6rem; padding: .5rem 1rem; margin: .25rem 0; width: 100%; text-align: left; }
+button:focus, select:focus, input:focus { outline: 4px solid #6cf; outline-offset: 2px; }
+button.big { min-height: 6rem; font-size: 1.8rem; font-weight: bold; text-align: center; }
+button.half { width: calc(50% - .3rem); display: inline-block; vertical-align: top; }
+.row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.row > button { flex: 1 1 45%; }
+nav button { background: #222; color: #f4f1e8; border-color: #555; }
+fieldset { border: 2px solid #555; border-radius: .8rem; margin: .8rem 0; padding: .4rem .8rem .8rem; }
+legend { font-weight: bold; padding: 0 .3rem; }
+label { display: flex; align-items: center; gap: .8rem; min-height: 3.2rem; padding: .2rem 0; }
+input[type=checkbox], input[type=radio] { width: 1.8rem; height: 1.8rem; flex: none; }
+input[type=range] { width: 100%; height: 3rem; }
+ul.plain, ol.plain { list-style: none; padding: 0; margin: 0; }
+ul.arts > li { border-bottom: 1px solid #333; padding: .5rem 0; }
+.meta { color: #c9c3b3; font-size: 1.05rem; }
+#now { color: #c9c3b3; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+#reader p { margin: .6rem 0; }
+a { color: #8cf; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Night Library</h1>
+  <p id="now">Nothing playing yet. Press Play to start a random overnight playlist.</p>
+</header>
+<main>
+<section id="v-player" aria-labelledby="h-player">
+  <h2 id="h-player" tabindex="-1">Player</h2>
+  <button id="b-play" class="big">Play</button>
+  <button id="b-resume" hidden>Resume where I stopped</button>
+  <div class="row">
+    <button id="b-prev">Previous article</button>
+    <button id="b-next">Next article</button>
+    <button id="b-pback">Back one paragraph</button>
+    <button id="b-pfwd">Forward one paragraph</button>
+  </div>
+  <button id="b-what">What's playing?</button>
+  <div class="row">
+    <button id="b-more">More like this</button>
+    <button id="b-less">Less like this, and skip</button>
+  </div>
+  <button id="b-fav" aria-pressed="false">Add this article to favourites</button>
+  <fieldset id="f-sleep"><legend>Sleep timer</legend></fieldset>
+  <h3 id="h-upnext">Coming up</h3>
+  <ol id="upnext" class="plain"></ol>
+</section>
+
+<section id="v-build" aria-labelledby="h-build" hidden>
+  <h2 id="h-build" tabindex="-1">Build a playlist</h2>
+  <p>Choose what you would like, then press Build and play. The order is always random. Nothing repeats until everything you chose has played.</p>
+  <form id="buildform" onsubmit="return false">
+    <fieldset id="f-mode"><legend>Mode</legend></fieldset>
+    <fieldset id="f-one"><legend>Subject for one-subject mode</legend></fieldset>
+    <fieldset id="f-subjects"><legend>Subjects to include</legend></fieldset>
+    <fieldset id="f-eras"><legend>Eras to include</legend></fieldset>
+    <fieldset id="f-hours"><legend>How long a playlist</legend></fieldset>
+    <fieldset id="f-length"><legend>Length of pieces</legend></fieldset>
+    <fieldset id="f-light"><legend>Share of lighter pieces</legend></fieldset>
+    <fieldset id="f-link"><legend>Across time links</legend></fieldset>
+    <fieldset id="f-chain"><legend>Pieces in each link</legend></fieldset>
+  </form>
+  <p id="buildsummary" class="meta"></p>
+  <button id="b-buildplay" class="big">Build and play</button>
+  <button id="b-buildonly">Build without playing</button>
+</section>
+
+<section id="v-shelves" aria-labelledby="h-shelves" hidden>
+  <h2 id="h-shelves" tabindex="-1">Shelves</h2>
+  <p>Each shelf is a ready-made encyclopedia. Pressing one builds a random playlist from it and starts playing.</p>
+  <ul id="shelves" class="plain"></ul>
+</section>
+
+<section id="v-browse" aria-labelledby="h-browse" hidden>
+  <h2 id="h-browse" tabindex="-1">Browse all articles</h2>
+  <p>Articles are grouped by subject under headings. Each has a Play button and a Read button, which shows the text for VoiceOver.</p>
+  <div id="browse"></div>
+</section>
+
+<section id="v-read" aria-labelledby="h-read" hidden>
+  <h2 id="h-read" tabindex="-1">Article</h2>
+  <p id="readmeta" class="meta"></p>
+  <div class="row"><button id="b-readplay">Play this article</button><button id="b-readback">Back</button></div>
+  <div id="reader"></div>
+</section>
+
+<section id="v-settings" aria-labelledby="h-settings" hidden>
+  <h2 id="h-settings" tabindex="-1">Voice and settings</h2>
+  <label for="s-voice" style="display:block">Reading voice</label>
+  <select id="s-voice"></select>
+  <label for="s-rate" style="display:block">Speaking speed</label>
+  <input type="range" id="s-rate" min="0.5" max="1.5" step="0.05">
+  <button id="b-testvoice">Test the voice</button>
+  <fieldset id="f-toggles"><legend>Spoken extras</legend></fieldset>
+  <fieldset id="f-gap"><legend>Pause between articles</legend></fieldset>
+  <fieldset id="f-night"><legend>Overnight</legend></fieldset>
+  <button id="b-offline">Save all articles on this phone for offline listening</button>
+  <button id="b-clearhist">Forget what I have heard, so everything can play again</button>
+  <button id="b-clearweights">Reset more like this and less like this</button>
+  <button id="b-reset">Reset all settings</button>
+</section>
+
+<section id="v-help" aria-labelledby="h-help" hidden>
+  <h2 id="h-help" tabindex="-1">How to use</h2>
+  <h3>Starting</h3>
+  <p>The Menu is at the bottom of the screen, under its own heading. Press Play. Night Library builds an eight-hour random playlist from every subject and starts reading in its own British voice. VoiceOver does not need to read anything, so you can leave the phone alone.</p>
+  <h3>Overnight</h3>
+  <p>Plug the phone in. While it plays, Night Library keeps the screen awake, so leave the app open and do not lock the phone. The iPhone may stop the reading voice if the screen locks or you switch to another app. If that happens, open Night Library again and press Play or Resume where I stopped. It remembers the article and paragraph.</p>
+  <p>Tip: VoiceOver's screen curtain, a triple tap with three fingers, turns the display dark while the screen stays awake.</p>
+  <h3>Choosing what you hear</h3>
+  <p>Shelves are quick presets, such as a history encyclopedia or a science encyclopedia. Build a playlist gives you tick boxes for subjects and eras, and choices for mode, length and the share of lighter pieces.</p>
+  <p>Across time mode plays linked pieces from very different eras that share a theme, such as migration, empire or climate. Before each linked piece you hear a short bridge, for example: from the first farmers forward to today's food supply.</p>
+  <h3>While listening</h3>
+  <p>Next and Previous move between articles. Back and Forward one paragraph move within one. What's playing tells you the title, subject and time left. More like this and Less like this change how often similar pieces are chosen. The sleep timer stops the reading after a time you choose, or at the end of the article.</p>
+  <h3>Reading with VoiceOver</h3>
+  <p>In Browse, the Read button shows an article as text with headings, so you can read it with VoiceOver at your own pace.</p>
+  <p>Keyboard: Space plays or pauses, N next article, P previous, left and right arrows move a paragraph.</p>
+</section>
+
+<section id="v-credits" aria-labelledby="h-credits" hidden>
+  <h2 id="h-credits" tabindex="-1">Credits and licences</h2>
+  <p>Wikipedia articles are by Wikipedia contributors, under the Creative Commons Attribution-ShareAlike 4.0 licence. They have been shortened and cleaned for listening: references, lists and pronunciation guides removed, and long articles stop after about 40 minutes. Public-domain texts come from Project Gutenberg. Each article below links to its source and licence.</p>
+  <ul id="credits" class="plain arts"></ul>
+</section>
+</main>
+<nav aria-label="Main menu" id="menu">
+  <h2 id="h-menu">Menu</h2>
+  <div class="row">
+    <button id="n-player" data-view="player">Player</button>
+    <button id="n-build" data-view="build">Build a playlist</button>
+    <button id="n-shelves" data-view="shelves">Shelves</button>
+    <button id="n-browse" data-view="browse">Browse all articles</button>
+    <button id="n-settings" data-view="settings">Voice and settings</button>
+    <button id="n-help" data-view="help">How to use</button>
+    <button id="n-credits" data-view="credits">Credits and licences</button>
+  </div>
+</nav>
+<div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+<script>// Night Library text cleaning for listening. Pure functions, used by the build (Node) and tests.
+(function (root) {
+  const DROP = /^(references?|notes?|see also|external links?|bibliography|further reading|sources|citations?|footnotes?|works cited|explanatory notes|notes and references|references and notes|notes and citations|citations and notes|informational notes|gallery|images?|primary sources|secondary sources|general sources|general and cited sources|cited sources|cited works|literature|works|selected works|publications|selected publications|selected bibliography|discography|filmography|in popular culture|popular culture|external links and further reading|bibliography and further reading|further reading and external links|sources and further reading|online sources|print sources|reference|endnotes|annotations|list of .*|timeline|honours|honors|awards and honours|awards and honors|awards|eponyms|legacy and honours|works and publications|written works|books|articles|filmography and discography|notable people|notable members|see also and references|additional reading|notes and sources|portrayal in media|in fiction|in literature|in film|media)$/i;
+  const ALWAYS = /^(references?|notes|see also|external links?|bibliography|further reading|citations?|footnotes?|works cited|explanatory notes|notes and references|references and notes|notes and citations|citations and notes|informational notes|general and cited sources|cited sources|cited works|external links and further reading|bibliography and further reading|further reading and external links|sources and further reading|endnotes|notes and sources|additional reading|general sources|primary sources|secondary sources|selected bibliography)$/i;
+  const NONLATIN = /[\u0370-\u03ff\u1f00-\u1fff\u0400-\u04ff\u0590-\u05ff\u0600-\u06ff\u0700-\u08ff\u0900-\u0dff\u0e00-\u0fff\u1000-\u10ff\u1100-\u11ff\u3000-\u9fff\uac00-\ud7af\uf900-\ufaff]/;
+  const IPA = /[ˈˌːəɪʊɛɔæɑɒʌɜθðʃʒŋɡɐɨʉɯɵɘɞɤɥɲɳɹɻɾʀʁʂʐʎʏʔʕʲˑ̃]/;
+  const LANGLABEL = /^\s*(?:[A-Z][a-z]+(?:[ -][A-Z]?[a-z]+){0,3})\s*:\s*/; // "Ancient Greek: ..."
+  function stripMath(s) {
+    let out = '', i = 0;
+    while (i < s.length) {
+      const k = s.indexOf('{\\displaystyle', i);
+      if (k < 0) { out += s.slice(i); break; }
+      out += s.slice(i, k); let depth = 0, j = k;
+      for (; j < s.length; j++) { if (s[j] === '{') depth++; else if (s[j] === '}') { depth--; if (depth === 0) { j++; break; } } }
+      i = j;
+    }
+    return out;
+  }
+  function cleanParen(inner) {
+    if (!inner.trim()) return '';
+    if (/listen|pronounced|pronunciation|\bIPA\b|romanized|romanised|transliterat|\blit\.|\bborn\b.*\bnée\b/i.test(inner) && inner.length < 200) {
+      inner = inner.split(/;/).filter(p => !/listen|pronounced|pronunciation|\bIPA\b|romani[sz]ed|transliterat|\blit\./i.test(p)).join(';');
+    }
+    const parts = inner.split(/;|,(?=\s*(?:[A-Z][a-z]+ )?[A-Z][a-z]+:)/).map(p => p.trim()).filter(Boolean);
+    const keep = parts.filter(p => !NONLATIN.test(p) && !IPA.test(p) && !(LANGLABEL.test(p) && !/^\s*(?:born|died|reigned|r|c|lit|née|English|also|formerly|officially|abbreviated)\b/i.test(p)) && !/^\/.*\/$/.test(p));
+    return keep.join('; ');
+  }
+  function cleanInline(s) {
+    s = stripMath(s);
+    s = s.replace(/\[(?:\d+|[a-z]|citation needed|note \d+|nb \d+|clarification needed|when\?|who\?|according to whom\?)\]/gi, '');
+    // coordinates
+    s = s.replace(/\b\d{1,3}°\s?\d{0,2}′?\s?\d{0,2}(?:\.\d+)?″?\s?[NS][,\s]+\d{1,3}°\s?\d{0,2}′?\s?\d{0,2}(?:\.\d+)?″?\s?[EW]\b/g, '');
+    s = s.replace(/\b\d{1,3}\.\d+°[NS]\s+\d{1,3}\.\d+°[EW]\b/g, '');
+    s = s.replace(/Coordinates:\s*[^\n.]*/g, '');
+    // parentheses (one level, repeated for nesting)
+    for (let k = 0; k < 3; k++) s = s.replace(/\(([^()]*)\)/g, (m, inner) => { const c = cleanParen(inner); return c ? '\u27e8' + c + '\u27e9' : ''; });
+    s = s.replace(/\u27e8/g, '(').replace(/\u27e9/g, ')');
+    s = s.replace(/\(\s*[;,]?\s*\)/g, '');
+    // listening-friendly abbreviations
+    s = s.replace(/\bc\.\s?(?=\d)/g, 'around ').replace(/\bca\.\s?(?=\d)/g, 'around ');
+    s = s.replace(/\be\.g\.,?/g, 'for example').replace(/\bi\.e\.,?/g, 'that is').replace(/\betc\./g, 'and so on');
+    s = s.replace(/\bfl\.\s?(?=\d)/g, 'active ').replace(/\br\.\s?(?=\d)/g, 'reigned ');
+    s = s.replace(/\bBCE\b/g, 'BC').replace(/\bCE\b/g, 'AD');
+    s = s.replace(/\S*(?:[\u0370-\u03ff\u1f00-\u1fff\u0400-\u04ff\u0590-\u05ff\u0600-\u06ff\u0700-\u08ff\u0900-\u0dff\u0e00-\u0fff\u1000-\u10ff\u3000-\u9fff\uac00-\ud7af]|[\ud800-\udbff][\udc00-\udfff])\S*/g, '');
+    s = s.replace(/°\s?C\b/g, ' degrees Celsius').replace(/°\s?F\b/g, ' degrees Fahrenheit').replace(/°/g, ' degrees');
+    s = s.replace(/\(\s*[;,]?\s*\)/g, '').replace(/\/[^\/\s]{1,12}\/ ?\(hence\)/g, '');
+    s = s.replace(/[\u200b\u200e\u200f\ufeff]/g, '').replace(/\u00a0/g, ' ');
+    s = s.replace(/\s+([,.;:])/g, '$1').replace(/([,;])\1+/g, '$1').replace(/\s{2,}/g, ' ').replace(/^[,;:\s]+/, '').trim();
+    return s;
+  }
+  function letterRatio(s) { const l = (s.match(/[A-Za-z]/g) || []).length; return s.length ? l / s.length : 0; }
+  // Wikipedia plain-text extract (exsectionformat=wiki) -> array of paragraphs; headings as "## text".
+  function cleanWikiExtract(text) {
+    const lines = text.replace(/\r/g, '').split('\n');
+    const out = []; let dropLevel = 0;
+    for (let idx = 0; idx < lines.length; idx++) {
+      const raw = lines[idx];
+      const line = raw.trim(); if (!line) continue;
+      const h = line.match(/^(={2,6})\s*(.*?)\s*\1$/);
+      if (h) {
+        const lvl = h[1].length, title = cleanInline(h[2]);
+        if (dropLevel && lvl > dropLevel) continue;
+        dropLevel = 0;
+        const late = idx > lines.length * 0.5;
+        if (ALWAYS.test(title) || (late && DROP.test(title))) { dropLevel = lvl; continue; }
+        out.push('## ' + title); continue;
+      }
+      if (dropLevel) continue;
+      const c = cleanInline(line);
+      if (!c || c.length < 3) continue;
+      if (letterRatio(c) < 0.55) continue;      // formula or table debris
+      if (/^\^|^Retrieved \d|ISBN|doi:|Archived from/i.test(c)) continue;
+      out.push(c);
+    }
+    // lists: join short runs into one spoken paragraph; drop long lists (tedious to hear)
+    const joined = [];
+    for (let i = 0; i < out.length;) {
+      const isItem = x => x && !x.startsWith('## ') && x.length < 70;
+      if (!isItem(out[i])) { joined.push(out[i]); i++; continue; }
+      let j = i; while (isItem(out[j])) j++;
+      const run = out.slice(i, j);
+      if (run.length < 3) joined.push(...run);
+      else if (run.length <= 7) joined.push(run.map(x => x.replace(/[.;:,]$/, '')).join('; ') + '.');
+      i = j;
+    }
+    out.length = 0; out.push(...joined);
+    // drop headings with no body before the next heading of the same or higher level, and trailing headings
+    const res = [];
+    for (let i = 0; i < out.length; i++) {
+      if (out[i].startsWith('## ')) { const nx = out[i + 1]; if (!nx || nx.startsWith('## ')) continue; }
+      res.push(out[i]);
+    }
+    return res;
+  }
+  // Gutenberg plain text section -> paragraphs
+  function cleanGutenberg(text) {
+    const paras = text.replace(/\r/g, '').split(/\n\s*\n/).map(p => p.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
+    const out = [];
+    for (let p of paras) {
+      if (/^\[?(illustration|footnote)/i.test(p)) continue;
+      p = p.replace(/\[\d+\]|\[[A-Z]\]/g, '').replace(/_([^_]+)_/g, '$1').replace(/\s{2,}/g, ' ').trim();
+      if (!p || letterRatio(p) < 0.5) continue;
+      if (p.length < 80 && p === p.toUpperCase() && /[A-Z]/.test(p)) { out.push('## ' + p.charAt(0) + p.slice(1).toLowerCase().replace(/\.$/, '')); continue; }
+      out.push(cleanInline(p));
+    }
+    return out.filter(Boolean);
+  }
+  function words(paras) { return paras.reduce((n, p) => n + p.replace(/^## /, '').split(/\s+/).filter(Boolean).length, 0); }
+  // Keep whole sections up to maxWords; return {paras, truncated}
+  function truncate(paras, maxWords) {
+    if (words(paras) <= maxWords) return { paras, truncated: false };
+    const out = []; let n = 0;
+    for (let i = 0; i < paras.length; i++) {
+      const w = words([paras[i]]);
+      if (n + w > maxWords && n > maxWords * 0.6) break;
+      if (n + w > maxWords * 1.15) break;
+      out.push(paras[i]); n += w;
+    }
+    while (out.length && out[out.length - 1].startsWith('## ')) out.pop();
+    return { paras: out, truncated: true };
+  }
+  // split a paragraph into speakable chunks of at most ~maxChars (sentence boundaries)
+  function chunks(par, maxChars = 220) {
+    const s = par.replace(/^## /, '');
+    const sent = s.match(/[^.!?]+(?:[.!?]+["'\u201d\u2019)]*|$)\s*/g) || [s];
+    const out = []; let cur = '';
+    for (let t of sent) {
+      t = t.trim(); if (!t) continue;
+      while (t.length > maxChars * 1.6) { // very long sentence: split at comma/semicolon/space
+        let cut = t.lastIndexOf(', ', maxChars); if (cut < maxChars / 3) cut = t.lastIndexOf('; ', maxChars); if (cut < maxChars / 3) cut = t.lastIndexOf(' ', maxChars);
+        if (cut < 20) cut = maxChars;
+        if (cur) { out.push(cur); cur = ''; }
+        out.push(t.slice(0, cut + 1).trim()); t = t.slice(cut + 1).trim();
+      }
+      if (cur && (cur.length + t.length + 1) > maxChars) { out.push(cur); cur = t; } else cur = cur ? cur + ' ' + t : t;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+  const api = { ALWAYS, cleanWikiExtract, cleanGutenberg, cleanInline, truncate, words, chunks, DROP };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NLClean = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>// Night Library core logic: random numbers, shuffle, playlist builder, across-time links, weights, resume state.
+// Pure functions (no DOM). Works in the browser (window.NLCore) and Node (require).
+(function (root) {
+  const ERA_ORDER = { deep: 0, ancient: 1, medieval: 2, earlymodern: 3, modern: 4, contemporary: 5 };
+  const cryptoObj = (typeof crypto !== 'undefined' && crypto.getRandomValues) ? crypto : (typeof require === 'function' ? require('crypto').webcrypto : null);
+  // uniform integer in [0, n) using crypto.getRandomValues with rejection sampling (no modulo bias)
+  function randInt(n) {
+    if (n <= 0) return 0;
+    const buf = new Uint32Array(1), lim = Math.floor(0x100000000 / n) * n;
+    let x; do { cryptoObj.getRandomValues(buf); x = buf[0]; } while (x >= lim);
+    return x % n;
+  }
+  function rand01() { const b = new Uint32Array(2); cryptoObj.getRandomValues(b); return ((b[0] >>> 5) * 67108864 + (b[1] >>> 6) + 1) / 9007199254740994; } // (0,1)
+  function shuffle(arr, ri = randInt) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = ri(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  // weighted random order without replacement (Efraimidis-Spirakis), used to choose WHICH pieces fill the time
+  function weightedOrder(items, wf, r01 = rand01) { return items.map(x => ({ x, k: Math.log(r01()) / Math.max(1e-6, wf(x)) })).sort((a, b) => b.k - a.k).map(o => o.x); }
+  function weightOf(a, weights) {
+    if (!weights) return 1;
+    let w = (weights.subject && weights.subject[a.s]) || 1;
+    for (const t of a.th) w *= (weights.theme && weights.theme[t]) || 1;
+    return Math.min(8, Math.max(0.05, w));
+  }
+  function adjustWeights(weights, a, more) {
+    const w = { subject: { ...(weights && weights.subject) }, theme: { ...(weights && weights.theme) } };
+    const f = more ? 1.5 : 0.6, lim = v => Math.min(4, Math.max(0.2, v));
+    w.subject[a.s] = lim((w.subject[a.s] || 1) * f);
+    for (const t of a.th) w.theme[t] = lim((w.theme[t] || 1) * (more ? 1.25 : 0.8));
+    return w;
+  }
+  // which articles a selection allows
+  function filterArticles(index, sel) {
+    const subj = new Set(sel.subjects || []), eras = new Set(sel.eras || []);
+    return index.filter(a => {
+      if (sel.mode === 'subject') { if (a.s !== sel.subject) return false; }
+      else if (sel.mode === 'favourites') { if (!(sel.favourites || []).includes(a.id)) return false; }
+      else if (!subj.has(a.s)) return false;
+      if (sel.mode !== 'favourites' && eras.size && !eras.has(a.e)) return false;
+      if (sel.mode === 'intros' && !a.i) return false;
+      if (sel.length === 'short' && a.m > 25) return false;
+      if (sel.length === 'long' && a.m < 10 && !a.i) return false;
+      return true;
+    });
+  }
+  function selectionKey(sel) { return JSON.stringify([sel.mode, sel.subject || '', (sel.subjects || []).slice().sort(), (sel.eras || []).slice().sort(), sel.length || '']); }
+  // Fill a duration (minutes, or Infinity for everything) with no repeats until the whole selection has played.
+  // played: array of ids already heard. Returns { ids, played (updated cycle record), cycleReset }
+  function buildPlaylist(index, sel, opts) {
+    const o = Object.assign({ minutes: 480, light: 0.1, played: [], weights: null }, opts);
+    const pool = filterArticles(index, sel);
+    if (!pool.length) return { ids: [], minutes: 0, cycleReset: false, poolSize: 0 };
+    const playedSet = new Set(o.played);
+    let fresh = pool.filter(a => !playedSet.has(a.id)), cycleReset = false;
+    const total = pool.reduce((n, a) => n + a.m, 0);
+    const target = o.minutes === Infinity || o.minutes === 'all' ? Infinity : o.minutes;
+    let chosen = [];
+    const pick = (cands, budget) => { // fill a budget from candidates (weighted choice)
+      const out = []; let m = 0;
+      for (const a of weightedOrder(cands, x => weightOf(x, o.weights))) {
+        if (m >= budget) break;
+        if (m + a.m > budget + 20 && m > 0 && budget !== Infinity) continue; // try a shorter piece instead of overshooting a lot
+        out.push(a); m += a.m;
+      }
+      return out;
+    };
+    const run = (cands, budget) => {
+      const hasL = cands.some(a => a.l), hasH = cands.some(a => !a.l);
+      let lr = o.light; if (!hasL) lr = 0; if (!hasH) lr = 1;
+      if (budget === Infinity) return cands.slice();
+      const L = pick(cands.filter(a => a.l), budget * lr);
+      const lm = L.reduce((n, a) => n + a.m, 0);
+      const H = pick(cands.filter(a => !a.l), Math.max(0, budget - lm));
+      return L.concat(H);
+    };
+    if (target === Infinity) { chosen = pool.slice(); cycleReset = fresh.length < pool.length; }
+    else {
+      chosen = run(fresh, target);
+      let m = chosen.reduce((n, a) => n + a.m, 0);
+      if (m < target - 20 && pool.length > fresh.length) { // everything fresh used up: start a new cycle with the rest
+        cycleReset = true; const used = new Set(chosen.map(a => a.id));
+        const more = run(pool.filter(a => !used.has(a.id)), target - m);
+        chosen = chosen.concat(more);
+      }
+    }
+    const order = shuffle(chosen);
+    return { ids: order.map(a => a.id), minutes: order.reduce((n, a) => n + a.m, 0), cycleReset, poolSize: pool.length, poolMinutes: total };
+  }
+  // after an article plays: update the cycle record so nothing repeats until the whole selection has played
+  function markPlayed(played, id, pool) {
+    const p = played.includes(id) ? played.slice() : played.concat([id]);
+    const ids = new Set(pool.map(a => a.id));
+    if (pool.length && pool.every(a => p.includes(a.id))) return p.filter(x => !ids.has(x)); // cycle complete
+    return p;
+  }
+  function eraGap(a, b) { if (!(a.e in ERA_ORDER) || !(b.e in ERA_ORDER)) return -1; return Math.abs(ERA_ORDER[a.e] - ERA_ORDER[b.e]); }
+  const WEAK = new Set(['science', 'knowledge', 'power', 'life', 'communication']); // too general to make a meaningful link
+  function sharedThemes(a, b) { return a.th.filter(t => !WEAK.has(t) && b.th.includes(t)); }
+  const THEME_WORDS = { 'ideas of the self': 'ideas of the self', food: 'food', migration: 'migration', climate: 'climate', trade: 'trade', empire: 'empire', religion: 'religion', technology: 'technology', war: 'war', disease: 'disease' };
+  function bridgeLine(a, b, theme) {
+    const later = ERA_ORDER[b.e] > ERA_ORDER[a.e];
+    return `Next, a link across time, through ${THEME_WORDS[theme] || theme}: from ${a.ph} ${later ? 'forward' : 'back'} to ${b.ph}.`;
+  }
+  // Across time: chains of 2 or 3 pieces sharing a theme, each step at least minGap eras apart.
+  function buildAcrossTime(index, sel, opts) {
+    const o = Object.assign({ minutes: 480, minGap: 2, chain: 2, played: [], weights: null, light: 0.1, toToday: false }, opts);
+    const pool = filterArticles(index, sel).filter(a => a.e in ERA_ORDER);
+    const playedSet = new Set(o.played);
+    let avail = pool.filter(a => !playedSet.has(a.id)); if (avail.length < 2) avail = pool.slice();
+    const used = new Set(), items = []; let m = 0, guard = 0;
+    const target = o.minutes === Infinity ? pool.reduce((n, a) => n + a.m, 0) : o.minutes;
+    while (m < target && guard++ < 500) {
+      const seeds = weightedOrder(avail.filter(a => !used.has(a.id) && (!o.toToday || ERA_ORDER[a.e] <= 3)), x => weightOf(x, o.weights));
+      let chain = null;
+      for (const seed of seeds) {
+        const cands = shuffle(avail.filter(b => !used.has(b.id) && b.id !== seed.id && eraGap(seed, b) >= o.minGap && (!o.toToday || ERA_ORDER[b.e] >= 4) && sharedThemes(seed, b).length));
+        if (!cands.length) continue;
+        const b = cands[0]; chain = [seed, b];
+        if (o.chain >= 3 && !o.toToday) { // third piece continues in the same direction through time
+          const dir = Math.sign(ERA_ORDER[b.e] - ERA_ORDER[seed.e]);
+          const c = shuffle(avail.filter(x => !used.has(x.id) && x.id !== seed.id && x.id !== b.id && eraGap(b, x) >= o.minGap && Math.sign(ERA_ORDER[x.e] - ERA_ORDER[b.e]) === dir && sharedThemes(b, x).length))[0];
+          if (c) chain.push(c);
+        }
+        break;
+      }
+      if (!chain) break;
+      // present each chain in time order, oldest first, with a spoken bridge before every linked piece
+      if (ERA_ORDER[chain[0].e] > ERA_ORDER[chain[chain.length - 1].e]) chain.reverse();
+      chain.forEach((a, k) => {
+        used.add(a.id); m += a.m;
+        if (k === 0) items.push({ id: a.id });
+        else { const prev = chain[k - 1], th = sharedThemes(prev, a); const t = th[randInt(th.length)]; items.push({ id: a.id, bridge: bridgeLine(prev, a, t), theme: t, from: prev.id }); }
+      });
+    }
+    return { items, minutes: m, poolSize: pool.length };
+  }
+  function fmtMinutes(min) {
+    min = Math.round(min);
+    if (min < 60) return `${min} minute${min === 1 ? '' : 's'}`;
+    const h = Math.floor(min / 60), r = min % 60; const hs = `${h} hour${h === 1 ? '' : 's'}`;
+    return r ? `${hs} ${r} minute${r === 1 ? '' : 's'}` : hs;
+  }
+  // resume state: plain JSON with validation, so a corrupt or outdated save never breaks the app
+  function encodeResume(s) { return JSON.stringify({ v: 1, items: s.items, pos: s.pos | 0, para: s.para | 0, key: s.key || '', at: s.at || Date.now() }); }
+  function decodeResume(str, index) {
+    try {
+      const d = JSON.parse(str); if (!d || d.v !== 1 || !Array.isArray(d.items)) return null;
+      const ids = new Set(index.map(a => a.id));
+      const items = d.items.filter(x => x && ids.has(x.id));
+      if (!items.length) return null;
+      let pos = Math.min(Math.max(0, d.pos | 0), items.length - 1);
+      if (items.length !== d.items.length) { const want = d.items[d.pos] && d.items[d.pos].id; const k = items.findIndex(x => x.id === want); pos = k >= 0 ? k : Math.min(pos, items.length - 1); }
+      return { items, pos, para: Math.max(0, d.para | 0), key: d.key || '', at: d.at || 0 };
+    } catch (e) { return null; }
+  }
+  const api = { ERA_ORDER, WEAK, randInt, rand01, shuffle, weightedOrder, weightOf, adjustWeights, filterArticles, selectionKey, buildPlaylist, markPlayed, buildAcrossTime, bridgeLine, eraGap, sharedThemes, fmtMinutes, encodeResume, decodeResume };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NLCore = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>// Night Library app: UI, speech player, overnight helpers.
+(function () {
+  'use strict';
+  const C = window.NLCore, CL = window.NLClean;
+  const $ = id => document.getElementById(id);
+  const K = 'nl.v1.';
+  const load = (k, d) => { try { const v = localStorage.getItem(K + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(K + k, JSON.stringify(v)); } catch (e) {} };
+  const SUBJ_SPOKEN = { history: 'History', philosophy: 'Philosophy', science: 'Science', religion: 'Belief and religion', world: 'World affairs', economics: 'Economics', lives: 'A life', light: 'Something lighter' };
+  const DEFAULTS = {
+    voiceURI: '', rate: 0.9, titles: true, headings: true, sourceLine: true, bridges: true, plugTip: true, announceArticles: false,
+    gap: 2, wakeLock: true, keepAlive: false, autoContinue: true, sleep: 'off',
+    mode: 'shuffle', one: 'history', subjects: null, eras: null, hours: '8', length: 'long', light: '0.1', link: 'any', chain: '2'
+  };
+  let S = Object.assign({}, DEFAULTS, load('settings', {}));
+  const saveS = () => save('settings', S);
+  let IDX = null, BY = {}, SUBJECTS = [], ERAS = [];
+  const packs = {};
+  const st = { items: [], pos: 0, para: 0, chunk: 0, playing: false, key: '', token: 0, utter: null, uStart: 0, uExpect: 0, retries: 0, phase: 'idle', pre: [], sleepAt: 0, stopAtEnd: false, wake: null, tipDone: false, lastAct: 0 };
+  window.NL = { st, S: () => S, idx: () => IDX }; // for tests
+
+  // ---------- helpers ----------
+  function announce(msg) { const l = $('live'); l.textContent = ''; setTimeout(() => { l.textContent = msg; }, 60); }
+  function setNow(msg) { $('now').textContent = msg; }
+  function el(tag, attrs, ...kids) { const e = document.createElement(tag); for (const k in (attrs || {})) { if (k === 'text') e.textContent = attrs[k]; else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]); else e.setAttribute(k, attrs[k]); } kids.forEach(k => k && e.append(k)); return e; }
+  function radios(fs, name, opts, cur, onch) {
+    fs.querySelectorAll('label').forEach(x => x.remove());
+    opts.forEach(([v, lab]) => { const i = el('input', { type: 'radio', name, value: v }); i.checked = String(cur) === String(v); i.addEventListener('change', () => onch(v)); fs.append(el('label', {}, i, lab)); });
+  }
+  function checks(fs, name, opts, curList, onch) {
+    fs.querySelectorAll('label').forEach(x => x.remove());
+    opts.forEach(([v, lab]) => { const i = el('input', { type: 'checkbox', name, value: v }); i.checked = curList.includes(v); i.addEventListener('change', () => onch(v, i.checked)); fs.append(el('label', {}, i, lab)); });
+  }
+  function art(id) { return BY[id]; }
+  async function pack(subject) {
+    if (!packs[subject]) packs[subject] = fetch('packs/' + subject + '.json').then(r => { if (!r.ok) throw new Error('pack ' + subject + ' ' + r.status); return r.json(); }).then(d => { const m = {}; d.articles.forEach(a => { m[a.id] = a.p; }); return m; }).catch(e => { delete packs[subject]; throw e; });
+    return packs[subject];
+  }
+  async function textOf(id) { const a = art(id); const m = await pack(a.s); return m[id] || []; }
+
+  // ---------- voices ----------
+  let voices = [];
+  function synth() { return window.speechSynthesis; }
+  function refreshVoices() {
+    if (!synth()) return;
+    voices = synth().getVoices() || [];
+    const sel = $('s-voice'); sel.innerHTML = '';
+    const en = voices.filter(v => /^en/i.test(v.lang));
+    const gb = en.filter(v => /GB/i.test(v.lang)), other = en.filter(v => !/GB/i.test(v.lang));
+    sel.append(el('option', { value: '', text: 'Automatic: best British English voice' }));
+    [...gb, ...other].forEach(v => sel.append(el('option', { value: v.voiceURI, text: `${v.name} (${v.lang})` })));
+    sel.value = voices.some(v => v.voiceURI === S.voiceURI) ? S.voiceURI : '';
+  }
+  function pickVoice() {
+    if (S.voiceURI) { const v = voices.find(x => x.voiceURI === S.voiceURI); if (v) return v; }
+    const gb = voices.filter(v => /en[-_]GB/i.test(v.lang));
+    const pref = gb.find(v => /premium|enhanced/i.test(v.name)) || gb.find(v => /daniel|serena|kate|arthur|martha|stephanie|oliver/i.test(v.name)) || gb[0];
+    return pref || voices.find(v => /^en/i.test(v.lang)) || null;
+  }
+
+  // ---------- speech engine: short chunks with a watchdog ----------
+  function speak(text, done) {
+    const sy = synth(); const tok = ++st.token;
+    if (!sy) { setTimeout(() => tok === st.token && done(), 50); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice(); if (v) u.voice = v; u.lang = (v && v.lang) || 'en-GB'; u.rate = S.rate; u.pitch = 1; u.volume = 1;
+    let finished = false;
+    const fin = () => { if (finished || tok !== st.token) return; finished = true; st.utter = null; done(); };
+    u.onend = fin; u.onerror = e => { if (e && (e.error === 'interrupted' || e.error === 'canceled')) return; fin(); };
+    st.utter = u; st.uText = text; st.uDone = done; st.uStart = Date.now(); st.uExpect = 3000 + text.length * 85 / Math.max(0.3, S.rate);
+    try { sy.speak(u); } catch (e) { setTimeout(fin, 100); }
+  }
+  // iOS only lets a page start speech from a tap, so speak a silent blank straight away inside the tap
+  function primeSpeech() { try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth() && synth().speak(u); } catch (e) {} }
+  function stopSpeech() { st.token++; st.utter = null; try { synth() && synth().cancel(); } catch (e) {} }
+  function watchdog() {
+    if (st.playing && st.utter) {
+      const age = Date.now() - st.uStart, sy = synth();
+      const stalled = age > st.uExpect * 2 + 4000 || (age > 4000 && sy && !sy.speaking && !sy.pending);
+      if (stalled) {
+        const text = st.uText, done = st.uDone;
+        st.retries++;
+        if (st.retries > 2) { st.retries = 0; stopSpeech(); done(); } // give up on this bit and move on
+        else { stopSpeech(); try { sy.resume(); } catch (e) {} speak(text, done); }
+      }
+    }
+    if (st.playing && st.sleepAt && Date.now() >= st.sleepAt) { st.sleepAt = 0; sleepNow(); }
+  }
+  setInterval(watchdog, 1500);
+
+  // ---------- player ----------
+  function current() { return st.items[st.pos] && art(st.items[st.pos].id); }
+  function persist() { save('resume', JSON.parse(C.encodeResume({ items: st.items, pos: st.pos, para: st.para, key: st.key, at: Date.now() }))); }
+  function minsLeftArticle(paras) { let w = 0; for (let i = st.para; i < paras.length; i++) w += paras[i].split(/\s+/).length; return w / (150 * S.rate / 0.9); }
+  function playlistLeft() { let m = 0; for (let i = st.pos + 1; i < st.items.length; i++) m += (art(st.items[i].id) || { m: 0 }).m; return m; }
+  function titleLine(a) { return `${SUBJ_SPOKEN[a.s]}${a.i ? ', an introduction' : ''}. ${a.t}. About ${C.fmtMinutes(a.m)}.`; }
+  function nowText(a) { return `Now playing ${st.pos + 1} of ${st.items.length}: ${a.t}. ${SUBJ_SPOKEN[a.s]}.`; }
+  function updateUI() {
+    $('b-play').textContent = st.playing ? 'Pause' : (st.items.length ? 'Play' : 'Play');
+    $('b-play').setAttribute('aria-label', st.playing ? 'Pause' : 'Play');
+    const a = current();
+    const favs = load('favs', []);
+    $('b-fav').textContent = a && favs.includes(a.id) ? 'Remove this article from favourites' : 'Add this article to favourites';
+    $('b-fav').setAttribute('aria-pressed', a && favs.includes(a.id) ? 'true' : 'false');
+    const ol = $('upnext'); ol.innerHTML = '';
+    st.items.slice(st.pos + 1, st.pos + 9).forEach(it => { const b = art(it.id); if (b) ol.append(el('li', { text: `${b.t}, ${SUBJ_SPOKEN[b.s]}, about ${C.fmtMinutes(b.m)}` })); });
+    if (!ol.children.length) ol.append(el('li', { text: 'Nothing queued yet.' }));
+    const r = C.decodeResume(JSON.stringify(load('resume', null)), IDX ? IDX.articles : []);
+    $('b-resume').hidden = st.playing || !r || (st.items.length > 0);
+    if (r && !$('b-resume').hidden) { const ra = art(r.items[r.pos].id); $('b-resume').textContent = `Resume where I stopped: ${ra.t}`; }
+  }
+  async function startArticle(fromPara, intro) {
+    const it = st.items[st.pos]; const a = it && art(it.id);
+    if (!a) return endPlaylist();
+    let paras;
+    try { paras = await textOf(a.id); } catch (e) { setNow('Could not load the articles. Check the internet connection and press Play again.'); announce('Could not load the articles.'); pause(true); return; }
+    if (!st.playing) return;
+    st.paras = paras; st.para = Math.min(fromPara || 0, Math.max(0, paras.length - 1)); st.chunk = 0;
+    st.pre = [];
+    if (intro) st.pre.push(intro);
+    if (!st.para && it.bridge && S.bridges) st.pre.push(it.bridge);
+    if (S.titles) st.pre.push(st.para ? `Continuing: ${a.t}.` : titleLine(a));
+    setNow(nowText(a)); if (S.announceArticles) announce(nowText(a));
+    mediaMeta(a); persist(); updateUI();
+    // preload the next article's pack
+    const nx = st.items[st.pos + 1]; if (nx && art(nx.id)) pack(art(nx.id).s).catch(() => {});
+    step();
+  }
+  function step() {
+    if (!st.playing) return;
+    if (st.pre.length) { const t = st.pre.shift(); return speak(t, () => { st.retries = 0; step(); }); }
+    const paras = st.paras || [];
+    if (st.para >= paras.length) return articleDone();
+    const p = paras[st.para];
+    const isHead = p.startsWith('## ');
+    if (isHead && !S.headings) { st.para++; st.chunk = 0; return step(); }
+    const parts = isHead ? [`Section: ${p.slice(3)}.`] : CL.chunks(p, 200);
+    if (st.chunk >= parts.length) { st.para++; st.chunk = 0; persist(); return step(); }
+    speak(parts[st.chunk], () => { st.retries = 0; st.chunk++; step(); });
+  }
+  function articleDone() {
+    const a = current();
+    const fin = () => {
+      if (a) {
+        const pool = C.filterArticles(IDX.articles, selFromSettings());
+        save('played', C.markPlayed(load('played', []), a.id, pool.some(x => x.id === a.id) ? pool : [a]));
+      }
+      if (st.stopAtEnd) { st.stopAtEnd = false; return sleepNow(); }
+      st.pos++; st.para = 0; persist();
+      if (st.pos >= st.items.length) return endPlaylist();
+      st.gapTimer = setTimeout(() => { if (st.playing) startArticle(0); }, (S.gap | 0) * 1000);
+    };
+    if (S.sourceLine && a) speak(a.src === 'Wikipedia' ? 'From Wikipedia.' : `From ${a.by}, via Project Gutenberg.`, fin); else fin();
+  }
+  function endPlaylist() {
+    if (S.autoContinue && st.playing) {
+      const ok = buildFromSettings(true);
+      if (ok) { st.pos = 0; return startArticle(0, 'That was the end of the playlist. Here is a new one with the same choices.'); }
+    }
+    speak('That is the end of the playlist.', () => {}); pause(true); st.items = []; st.pos = 0; persist(); updateUI();
+  }
+  function sleepNow() {
+    st.playing = false; stopSpeech(); clearTimeout(st.gapTimer); st.sleepAt = 0; st.stopAtEnd = false;
+    speak('Sleep timer finished. Goodnight.', () => {});
+    S.sleep = 'off'; saveS(); renderSleep();
+    releaseNight(); persist(); updateUI(); setNow('Paused by the sleep timer. Press Play to carry on.');
+  }
+  async function play() {
+    if (!IDX) return;
+    unlockAudio(); primeSpeech();
+    if (!st.items.length) {
+      const r = C.decodeResume(JSON.stringify(load('resume', null)), IDX.articles);
+      if (r) { st.items = r.items; st.pos = r.pos; st.para = r.para; st.key = r.key; }
+      else if (!buildFromSettings(false)) { announce('Nothing matches your choices. Open Build a playlist and tick more subjects or eras.'); return; }
+    }
+    st.playing = true; updateUI(); keepNight();
+    let intro = '';
+    if (S.plugTip && !st.tipDone) { intro = 'Tip: plug your phone in, and leave Night Library open with the screen on.'; st.tipDone = true; }
+    armSleep();
+    announce('Playing');
+    startArticle(st.para, intro);
+  }
+  function pause(silent) {
+    st.playing = false; stopSpeech(); clearTimeout(st.gapTimer); releaseNight(); persist(); updateUI();
+    if (!silent) { announce('Paused'); const a = current(); setNow(a ? `Paused: ${a.t}.` : 'Paused.'); }
+  }
+  function toggle() { st.playing ? pause() : play(); }
+  function jumpArticle(d) {
+    if (!st.items.length) return;
+    const np = st.pos + d; if (np < 0 || np >= st.items.length) { announce(d > 0 ? 'This is the last article.' : 'This is the first article.'); return; }
+    stopSpeech(); clearTimeout(st.gapTimer); st.pos = np; st.para = 0; persist();
+    const a = current(); announce(`${d > 0 ? 'Next' : 'Previous'} article: ${a.t}`);
+    if (st.playing) startArticle(0); else { setNow(`Ready: ${a.t}. Press Play.`); updateUI(); }
+  }
+  function jumpPara(d) {
+    if (!st.paras || !st.items.length) { announce('Nothing playing.'); return; }
+    let p = st.para + d;
+    // skip headings so a paragraph move lands on text
+    while (p > 0 && p < st.paras.length && st.paras[p].startsWith('## ') && d < 0) p--;
+    p = Math.max(0, Math.min(st.paras.length - 1, p));
+    st.para = p; st.chunk = 0; st.pre = []; persist();
+    announce(d > 0 ? 'Forward one paragraph' : 'Back one paragraph');
+    if (st.playing) { stopSpeech(); step(); }
+  }
+  function whatsPlaying() {
+    const a = current();
+    if (!a) { announce('Nothing playing.'); return; }
+    const paras = st.paras || [];
+    const msg = `${a.t}. ${SUBJ_SPOKEN[a.s]}, ${eraName(a.e)}. Paragraph ${st.para + 1} of ${paras.length || '?'}. About ${C.fmtMinutes(minsLeftArticle(paras))} left in this article. Article ${st.pos + 1} of ${st.items.length}, about ${C.fmtMinutes(playlistLeft() + minsLeftArticle(paras))} left in the playlist.${st.sleepAt ? ' Sleep timer: ' + C.fmtMinutes((st.sleepAt - Date.now()) / 60000) + ' left.' : ''}`;
+    setNow(msg);
+    if (st.playing) { stopSpeech(); st.chunk = Math.max(0, st.chunk); st.pre = [msg].concat(st.pre); step(); }
+    else announce(msg);
+  }
+  function eraName(e) { const x = ERAS.find(r => r[0] === e); return x ? x[1] : e; }
+  function likeThis(more) {
+    const a = current(); if (!a) { announce('Nothing playing.'); return; }
+    save('weights', C.adjustWeights(load('weights', null), a, more));
+    if (more) announce(`Noted. More pieces like ${a.t} from now on.`);
+    else { announce(`Noted. Fewer pieces like ${a.t}. Skipping to the next article.`); reweightQueue(); jumpArticle(1); }
+  }
+  function reweightQueue() { // re-order the rest of the queue with the new weights, still at random
+    const rest = st.items.slice(st.pos + 1), w = load('weights', null);
+    const order = C.weightedOrder(rest, it => C.weightOf(art(it.id), w));
+    st.items = st.items.slice(0, st.pos + 1).concat(order);
+  }
+  function toggleFav() {
+    const a = current(); if (!a) { announce('Nothing playing.'); return; }
+    let f = load('favs', []);
+    if (f.includes(a.id)) { f = f.filter(x => x !== a.id); announce(`Removed ${a.t} from favourites.`); } else { f.push(a.id); announce(`Added ${a.t} to favourites.`); }
+    save('favs', f); updateUI(); renderBrowse();
+  }
+  function armSleep() {
+    st.stopAtEnd = S.sleep === 'end'; st.sleepAt = 0;
+    const m = parseFloat(S.sleep); if (m > 0) st.sleepAt = Date.now() + m * 60000;
+  }
+
+  // ---------- overnight: wake lock, keep-alive, media session ----------
+  async function keepNight() {
+    if (S.wakeLock && 'wakeLock' in navigator && !st.wake) { try { st.wake = await navigator.wakeLock.request('screen'); st.wake.addEventListener('release', () => { st.wake = null; }); } catch (e) { st.wake = null; } }
+    if (S.keepAlive) startKeepAlive();
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+  }
+  function releaseNight() {
+    if (st.wake) { try { st.wake.release(); } catch (e) {} st.wake = null; }
+    stopKeepAlive();
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.playing) { keepNight(); if (synth() && !synth().speaking) { stopSpeech(); step(); } } });
+  let ka = null;
+  function quietWavUrl() { // 2 seconds of near-silent noise, 8 kHz mono 16-bit
+    const n = 16000, buf = new ArrayBuffer(44 + n * 2), d = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) d.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); d.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+    d.setUint32(24, 8000, true); d.setUint32(28, 16000, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); w(36, 'data'); d.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) d.setInt16(44 + i * 2, (C.randInt(7) - 3), true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockAudio() { if (S.keepAlive && !ka) { ka = new Audio(quietWavUrl()); ka.loop = true; ka.volume = 0.05; ka.setAttribute('aria-hidden', 'true'); } }
+  function startKeepAlive() { unlockAudio(); if (ka) ka.play().catch(() => {}); }
+  function stopKeepAlive() { if (ka) { try { ka.pause(); } catch (e) {} } }
+  function mediaMeta(a) {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: a.t, artist: SUBJ_SPOKEN[a.s], album: 'Night Library' });
+    } catch (e) {}
+  }
+  function mediaHandlers() {
+    if (!('mediaSession' in navigator)) return;
+    const h = { play: () => play(), pause: () => pause(), nexttrack: () => jumpArticle(1), previoustrack: () => jumpArticle(-1), seekforward: () => jumpPara(1), seekbackward: () => jumpPara(-1), stop: () => pause() };
+    for (const k in h) { try { navigator.mediaSession.setActionHandler(k, h[k]); } catch (e) {} }
+  }
+
+  // ---------- building playlists ----------
+  function allSubj() { return SUBJECTS.map(s => s[0]); }
+  function allEras() { return ERAS.map(e => e[0]); }
+  function selFromSettings() { return { mode: S.mode, subject: S.one, subjects: S.subjects || allSubj(), eras: S.eras || allEras(), length: S.length, favourites: load('favs', []) }; }
+  function buildFromSettings(quiet) {
+    const sel = selFromSettings(), minutes = S.hours === 'all' ? Infinity : parseFloat(S.hours) * 60;
+    const played = load('played', []), weights = load('weights', null);
+    let items, mins;
+    if (S.mode === 'across') {
+      const r = C.buildAcrossTime(IDX.articles, sel, { minutes, played, weights, toToday: S.link === 'today', chain: parseInt(S.chain, 10) });
+      items = r.items; mins = r.minutes;
+    } else {
+      const r = C.buildPlaylist(IDX.articles, sel, { minutes, light: parseFloat(S.light), played, weights });
+      items = r.ids.map(id => ({ id })); mins = r.minutes;
+    }
+    if (!items.length) { $('buildsummary').textContent = 'Nothing matches these choices. Tick more subjects or eras.'; return false; }
+    st.items = items; st.pos = 0; st.para = 0; st.key = C.selectionKey(sel); persist();
+    const lightM = items.reduce((n, it) => n + (art(it.id).l ? art(it.id).m : 0), 0);
+    const msg = `Playlist ready: ${items.length} articles, about ${C.fmtMinutes(mins)}${mins ? `, ${Math.round(lightM / mins * 100)} percent lighter pieces` : ''}.`;
+    $('buildsummary').textContent = msg; if (!quiet) announce(msg); updateUI();
+    return true;
+  }
+  function selectionSummary() {
+    const pool = C.filterArticles(IDX.articles, selFromSettings());
+    const m = pool.reduce((n, a) => n + a.m, 0);
+    $('buildsummary').textContent = `Your choices match ${pool.length} articles, about ${C.fmtMinutes(m)} in all.`;
+  }
+
+  // ---------- views ----------
+  let lastView = 'player';
+  function show(v) {
+    document.querySelectorAll('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
+    if (v !== 'read') lastView = v;
+    const h = document.querySelector('#v-' + v + ' h2'); if (h) h.focus();
+    window.scrollTo(0, 0);
+  }
+  function renderSleep() {
+    radios($('f-sleep'), 'sleep', [['off', 'Off'], ['30', '30 minutes'], ['60', '1 hour'], ['120', '2 hours'], ['240', '4 hours'], ['480', '8 hours'], ['end', 'At the end of this article']], S.sleep, v => { S.sleep = v; saveS(); armSleep(); announce(v === 'off' ? 'Sleep timer off' : 'Sleep timer set'); });
+  }
+  function renderBuild() {
+    radios($('f-mode'), 'mode', [['shuffle', 'Full shuffle'], ['across', 'Across time: linked pieces from very different eras'], ['subject', 'One subject'], ['intros', 'Introductions only'], ['favourites', 'My favourites']], S.mode, v => { S.mode = v; saveS(); selectionSummary(); });
+    radios($('f-one'), 'one', SUBJECTS, S.one, v => { S.one = v; saveS(); selectionSummary(); });
+    checks($('f-subjects'), 'subj', SUBJECTS, S.subjects || allSubj(), (v, on) => { const l = new Set(S.subjects || allSubj()); on ? l.add(v) : l.delete(v); S.subjects = [...l]; saveS(); selectionSummary(); });
+    checks($('f-eras'), 'era', ERAS, S.eras || allEras(), (v, on) => { const l = new Set(S.eras || allEras()); on ? l.add(v) : l.delete(v); S.eras = [...l]; saveS(); selectionSummary(); });
+    radios($('f-hours'), 'hours', [['1', '1 hour'], ['2', '2 hours'], ['4', '4 hours'], ['6', '6 hours'], ['8', '8 hours'], ['10', '10 hours'], ['12', '12 hours'], ['16', '16 hours'], ['20', '20 hours'], ['all', 'Everything chosen']], S.hours, v => { S.hours = v; saveS(); });
+    radios($('f-length'), 'length', [['long', 'Prefer longer pieces'], ['any', 'Any length'], ['short', 'Shorter pieces only, under 25 minutes']], S.length, v => { S.length = v; saveS(); selectionSummary(); });
+    radios($('f-light'), 'light', [['0', 'None'], ['0.1', 'About one in ten'], ['0.2', 'About one in five'], ['0.3', 'About three in ten']], S.light, v => { S.light = v; saveS(); });
+    radios($('f-link'), 'link', [['any', 'Any two eras far apart'], ['today', 'Always link the past to the modern world']], S.link, v => { S.link = v; saveS(); });
+    radios($('f-chain'), 'chain', [['2', 'Pairs'], ['3', 'Chains of three when possible']], S.chain, v => { S.chain = v; saveS(); });
+    selectionSummary();
+  }
+  const SHELVES = [
+    ['History encyclopedia', 'History and lives, from prehistory to today', { mode: 'shuffle', subjects: ['history', 'lives'] }],
+    ['Science encyclopedia', 'Physics, astronomy, biology, chemistry and the earth', { mode: 'shuffle', subjects: ['science'] }],
+    ['Philosophy encyclopedia', 'Philosophy and belief', { mode: 'shuffle', subjects: ['philosophy', 'religion'] }],
+    ['Belief and religion', 'The world\'s faiths and the big questions', { mode: 'subject', one: 'religion' }],
+    ['The world today', 'World affairs and economics: how the modern world works', { mode: 'shuffle', subjects: ['world', 'economics'] }],
+    ['Lives', 'Biographies', { mode: 'subject', one: 'lives' }],
+    ['Introductions', 'Start a new discipline: physics, philosophy, economics, archaeology and more', { mode: 'intros', subjects: null }],
+    ['Across time', 'Linked pieces from very different eras', { mode: 'across', subjects: null }],
+    ['Everything', 'The whole library at random', { mode: 'shuffle', subjects: null }],
+    ['Something lighter', 'Curiosities, nature, food, music and sport', { mode: 'subject', one: 'light' }]
+  ];
+  function renderShelves() {
+    const ul = $('shelves'); ul.innerHTML = '';
+    SHELVES.forEach(([name, desc, preset]) => {
+      const sel = Object.assign(selFromSettings(), { eras: allEras(), length: 'any' }, preset); if (!sel.subjects) sel.subjects = allSubj(); sel.subject = preset.one || S.one;
+      const pool = C.filterArticles(IDX.articles, sel), m = pool.reduce((n, a) => n + a.m, 0);
+      ul.append(el('li', {}, el('button', { onclick: () => useShelf(name, preset) , text: `${name}. ${desc}. ${pool.length} articles, about ${Math.round(m / 60)} hours.` })));
+    });
+  }
+  function useShelf(name, preset) {
+    Object.assign(S, { subjects: null, eras: null, length: 'any' }, preset); if (preset.one) S.one = preset.one; saveS(); renderBuild();
+    pause(true); st.items = [];
+    if (buildFromSettings(true)) { announce(`${name}. Playing.`); show('player'); play(); }
+  }
+  function renderBrowse() {
+    const box = $('browse'); box.innerHTML = '';
+    const favs = load('favs', []);
+    const mk = a => el('li', {}, el('p', { text: `${a.t}. About ${C.fmtMinutes(a.m)}. ${eraName(a.e)}${a.i ? '. Introduction' : ''}${a.l ? '. Lighter' : ''}.` }),
+      el('div', { class: 'row' }, el('button', { 'aria-label': 'Play ' + a.t, text: 'Play', onclick: () => playOne(a.id) }), el('button', { 'aria-label': 'Read ' + a.t, text: 'Read', onclick: () => readOne(a.id) })));
+    if (favs.length) { box.append(el('h3', { text: 'My favourites' })); const ul = el('ul', { class: 'plain arts' }); favs.map(art).filter(Boolean).forEach(a => ul.append(mk(a))); box.append(ul); }
+    SUBJECTS.forEach(([s, lab]) => {
+      const arr = IDX.articles.filter(a => a.s === s).sort((x, y) => (C.ERA_ORDER[x.e] ?? 9) - (C.ERA_ORDER[y.e] ?? 9) || x.t.localeCompare(y.t));
+      box.append(el('h3', { text: `${lab}, ${arr.length} articles` }));
+      const ul = el('ul', { class: 'plain arts' }); arr.forEach(a => ul.append(mk(a))); box.append(ul);
+    });
+  }
+  function playOne(id) {
+    pause(true);
+    // play this article first, then carry on with a random playlist from the current choices
+    const ok = buildFromSettings(true);
+    const rest = ok ? st.items.filter(x => x.id !== id) : [];
+    st.items = [{ id }].concat(rest); st.pos = 0; st.para = 0; persist();
+    show('player'); play();
+  }
+  let readingId = null;
+  async function readOne(id) {
+    readingId = id; const a = art(id);
+    $('h-read').textContent = a.t;
+    $('readmeta').textContent = `${SUBJECTS.find(s => s[0] === a.s)[1]}. ${eraName(a.e)}. ${a.r}. About ${C.fmtMinutes(a.m)}. Themes: ${a.th.join(', ')}. Source: ${a.src}, ${a.lic}.`;
+    const box = $('reader'); box.innerHTML = ''; box.append(el('p', { text: 'Loading…' }));
+    show('read');
+    try {
+      const paras = await textOf(id); box.innerHTML = '';
+      paras.forEach(p => box.append(p.startsWith('## ') ? el('h3', { text: p.slice(3) }) : el('p', { text: p })));
+      box.append(el('p', {}, 'Source: ', el('a', { href: a.url, text: `${a.src}: ${a.t}` }), '. Licence: ', el('a', { href: a.licUrl, text: a.lic }), '.'));
+    } catch (e) { box.innerHTML = ''; box.append(el('p', { text: 'Could not load this article. Check the internet connection.' })); }
+  }
+  function renderCredits() {
+    const ul = $('credits'); ul.innerHTML = '';
+    IDX.articles.slice().sort((x, y) => x.t.localeCompare(y.t)).forEach(a => ul.append(el('li', {}, el('a', { href: a.url, text: a.t }), ` . ${a.src}${a.src === 'Wikipedia' ? ', by Wikipedia contributors' : ', by ' + a.by}. Licence: `, el('a', { href: a.licUrl, text: a.lic }), a.cut ? '. Shortened for listening.' : '. Cleaned for listening.')));
+  }
+  function renderSettings() {
+    refreshVoices();
+    const r = $('s-rate'); r.value = S.rate;
+    const vt = () => { r.setAttribute('aria-valuetext', `${Math.round(S.rate * 100)} percent${S.rate < 1 ? ', slower than normal' : S.rate > 1 ? ', faster than normal' : ', normal'}`); };
+    vt(); r.oninput = () => { S.rate = parseFloat(r.value); vt(); saveS(); };
+    const box = $('f-toggles'); box.querySelectorAll('label').forEach(x => x.remove());
+    [['titles', 'Say the subject, title and length before each article'], ['bridges', 'Say the bridge line before linked pieces in Across time'], ['headings', 'Read section headings'], ['sourceLine', 'Say the source at the end of each article'], ['plugTip', 'Remind me to plug the phone in when I press Play'], ['announceArticles', 'VoiceOver also announces each new article (it may talk over the reading)'], ['autoContinue', 'When a playlist ends, start a new one with the same choices']].forEach(([k, lab]) => {
+      const i = el('input', { type: 'checkbox' }); i.checked = !!S[k]; i.addEventListener('change', () => { S[k] = i.checked; saveS(); }); box.append(el('label', {}, i, lab));
+    });
+    radios($('f-gap'), 'gap', [['0', 'No pause'], ['2', '2 seconds'], ['5', '5 seconds'], ['10', '10 seconds']], S.gap, v => { S.gap = parseInt(v, 10); saveS(); });
+    const nb = $('f-night'); nb.querySelectorAll('label').forEach(x => x.remove());
+    [['wakeLock', 'Keep the screen awake while playing'], ['keepAlive', 'Experimental: play a near-silent sound in the background, which may help the iPhone keep the app running']].forEach(([k, lab]) => {
+      const i = el('input', { type: 'checkbox' }); i.checked = !!S[k]; i.addEventListener('change', () => { S[k] = i.checked; saveS(); if (k === 'keepAlive' && !i.checked) stopKeepAlive(); }); nb.append(el('label', {}, i, lab));
+    });
+  }
+
+  // ---------- start ----------
+  function bind() {
+    document.querySelectorAll('#menu button').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+    $('b-play').addEventListener('click', toggle);
+    $('b-resume').addEventListener('click', () => play());
+    $('b-prev').addEventListener('click', () => jumpArticle(-1));
+    $('b-next').addEventListener('click', () => jumpArticle(1));
+    $('b-pback').addEventListener('click', () => jumpPara(-1));
+    $('b-pfwd').addEventListener('click', () => jumpPara(1));
+    $('b-what').addEventListener('click', whatsPlaying);
+    $('b-more').addEventListener('click', () => likeThis(true));
+    $('b-less').addEventListener('click', () => likeThis(false));
+    $('b-fav').addEventListener('click', toggleFav);
+    $('b-buildplay').addEventListener('click', () => { pause(true); st.items = []; if (buildFromSettings(false)) { show('player'); play(); } });
+    $('b-buildonly').addEventListener('click', () => { pause(true); buildFromSettings(false); });
+    $('b-readplay').addEventListener('click', () => readingId && playOne(readingId));
+    $('b-readback').addEventListener('click', () => show(lastView));
+    $('s-voice').addEventListener('change', e => { S.voiceURI = e.target.value; saveS(); });
+    $('b-testvoice').addEventListener('click', () => { if (st.playing) pause(true); speak('This is the Night Library reading voice. History. The Fall of Constantinople. About 40 minutes.', () => {}); });
+    $('b-clearhist').addEventListener('click', () => { save('played', []); announce('Done. Everything can play again.'); });
+    $('b-clearweights').addEventListener('click', () => { save('weights', null); announce('More like this and less like this have been reset.'); });
+    $('b-reset').addEventListener('click', () => { S = Object.assign({}, DEFAULTS); saveS(); renderSettings(); renderBuild(); renderSleep(); announce('Settings reset.'); });
+    $('b-offline').addEventListener('click', async () => {
+      announce('Saving all articles. Please wait.');
+      try { await Promise.all(IDX.packs.map(p => pack(p.subject))); announce(navigator.serviceWorker && navigator.serviceWorker.controller ? 'All articles are saved on this phone.' : 'All articles are loaded for this session.'); } catch (e) { announce('Could not save everything. Check the internet connection.'); }
+    });
+    document.addEventListener('keydown', e => {
+      if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === ' ' && e.target.tagName !== 'BUTTON') { e.preventDefault(); toggle(); }
+      else if (e.key === 'n' || e.key === 'N') jumpArticle(1);
+      else if (e.key === 'p' || e.key === 'P') jumpArticle(-1);
+      else if (e.key === 'ArrowRight' && e.target.tagName !== 'BUTTON') jumpPara(1);
+      else if (e.key === 'ArrowLeft' && e.target.tagName !== 'BUTTON') jumpPara(-1);
+    });
+    if (synth()) { synth().onvoiceschanged = refreshVoices; }
+    mediaHandlers();
+  }
+  async function init() {
+    bind();
+    try {
+      const r = await fetch('packs/index.json'); if (!r.ok) throw new Error(r.status);
+      IDX = await r.json();
+    } catch (e) { setNow('Could not load the library. Check the internet connection and reload the page.'); announce('Could not load the library.'); return; }
+    IDX.articles.forEach(a => { BY[a.id] = a; });
+    SUBJECTS = IDX.subjects; ERAS = IDX.eras;
+    renderSleep(); renderBuild(); renderShelves(); renderBrowse(); renderCredits(); renderSettings(); updateUI();
+    const tot = IDX.articles.reduce((n, a) => n + a.m, 0);
+    if (!$('b-resume').hidden) setNow(`Welcome back. ${IDX.articles.length} articles, about ${Math.round(tot / 60)} hours. Press Resume to carry on, or Play for the same playlist.`);
+    else setNow(`Ready. ${IDX.articles.length} articles, about ${Math.round(tot / 60)} hours of listening. Press Play to start a random overnight playlist.`);
+    document.body.dataset.ready = '1';
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  init();
+})();
+</script>
+</body>
+</html>
